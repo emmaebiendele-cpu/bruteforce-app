@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In – BruteShield</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+<div class="page-center">
+  <div class="auth-card card card-lg">
+    <div class="auth-logo">BRUTE<span class="shield">SHIELD</span></div>
+    <h2 style="margin-bottom:0.3rem;">Welcome back</h2>
+    <p class="text-muted" style="margin-bottom:1.75rem;">Sign in to your account to continue.</p>
+    <div id="alert-box" class="alert hidden"></div>
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="your_username" autocomplete="username" maxlength="80" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" maxlength="128" />
+    </div>
+    <button class="btn btn-primary btn-full" id="login-btn">Sign In</button>
+    <div class="auth-footer">
+      Don't have an account? <a href="/register">Create one</a>
+    </div>
+  </div>
+</div>
+<script>
+  function showAlert(type, msg) {
+    var box = document.getElementById('alert-box');
+    box.className = 'alert alert-' + type;
+    box.textContent = msg;
+    box.classList.remove('hidden');
+  }
+
+  document.getElementById('login-btn').onclick = function() {
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    var btn = document.getElementById('login-btn');
+
+    if (!username || !password) {
+      showAlert('error', 'Please fill in all fields.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    document.getElementById('alert-box').classList.add('hidden');
+
+    var form = new FormData();
+    form.append('username', username);
+    form.append('password', password);
+
+    fetch('/api/auth/login', {
+      method: 'POST',
+      body: form,
+      credentials: 'same-origin'
+    }).then(function(res) {
+      return res.json().then(function(data) {
+        return { status: res.status, data: data };
+      });
+    }).then(function(result) {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+
+      if (result.status !== 200) {
+        showAlert('error', result.data.detail || 'Login failed.');
+        return;
+      }
+
+      showAlert('success', 'Login successful! Redirecting...');
+
+      setTimeout(function() {
+        var redirectTo = result.data.redirect_to || '/dashboard';
+        if (redirectTo.startsWith('/') && !redirectTo.startsWith('//')) {
+          window.location.href = redirectTo;
+        } else {
+          window.location.href = '/dashboard';
+        }
+      }, 800);  // ← fixed: removed the stray ) that was here
+
+    }).catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+      showAlert('error', 'Network error: ' + err.message);
+    });
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
+</script>
+</body>
+</html>

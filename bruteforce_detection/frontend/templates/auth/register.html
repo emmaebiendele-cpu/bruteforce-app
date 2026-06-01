@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account – BruteShield</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+<div class="page-center">
+  <div class="auth-card card card-lg">
+    <div class="auth-logo">BRUTE<span class="shield">SHIELD</span></div>
+    <h2 style="margin-bottom:0.3rem;">Create account</h2>
+    <p class="text-muted" style="margin-bottom:1.75rem;">Secure access starts here.</p>
+
+    <div id="alert-box" class="alert hidden"></div>
+
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="choose_a_username" autocomplete="username" maxlength="64" />
+      <span class="field-error hidden" id="err-username"></span>
+    </div>
+    <div class="form-group">
+      <label for="email">Email address</label>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      <span class="field-error hidden" id="err-email"></span>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Minimum 8 characters" autocomplete="new-password" />
+      <span class="field-error hidden" id="err-password"></span>
+    </div>
+    <div class="form-group" style="margin-bottom:1.5rem;">
+      <label for="password2">Confirm password</label>
+      <input type="password" id="password2" placeholder="••••••••" autocomplete="new-password" />
+      <span class="field-error hidden" id="err-password2"></span>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">
+      Create Account
+    </button>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setFieldError(id, msg) {
+    const el = document.getElementById(id);
+    const input = document.getElementById(id.replace('err-', ''));
+    if (msg) {
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      input && input.classList.add('error');
+    } else {
+      el.classList.add('hidden');
+      input && input.classList.remove('error');
+    }
+  }
+
+  function clearErrors() {
+    ['err-username','err-email','err-password','err-password2'].forEach(id => setFieldError(id, ''));
+    document.getElementById('alert-box').classList.add('hidden');
+  }
+
+  function showAlert(type, msg) {
+    const box = document.getElementById('alert-box');
+    box.className = `alert alert-${type}`;
+    box.textContent = msg;
+    box.classList.remove('hidden');
+  }
+
+  function validate(username, email, password, password2) {
+    let valid = true;
+    if (username.length < 3) { setFieldError('err-username','Must be at least 3 characters'); valid = false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFieldError('err-email','Enter a valid email'); valid = false; }
+    if (password.length < 8) { setFieldError('err-password','Must be at least 8 characters'); valid = false; }
+    if (password !== password2) { setFieldError('err-password2','Passwords do not match'); valid = false; }
+    return valid;
+  }
+
+  async function doRegister() {
+    clearErrors();
+    const btn = document.getElementById('reg-btn');
+    const username = document.getElementById('username').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const password2 = document.getElementById('password2').value;
+
+    if (!validate(username, email, password, password2)) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating account…';
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showAlert('error', data.detail || 'Registration failed.');
+        return;
+      }
+
+      showAlert('success', 'Account created! Redirecting to sign in…');
+      setTimeout(() => window.location.href = '/', 1500);
+
+    } catch (err) {
+      showAlert('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Create Account';
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ───────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bruteforce_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── BruteShield API ──────────────────────────────────────────────────────
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/bruteforce_db
+      SYNC_DATABASE_URL: postgresql://postgres:password@db:5432/bruteforce_db
+      SECRET_KEY: super-secret-production-key-change-this
+      DEBUG: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./ml:/app/ml   # persist trained model artefacts
+    command: >
+      sh -c "python scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  pgdata:

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – BruteShield</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a class="navbar-brand" href="/dashboard">BRUTE<span>SHIELD</span></a>
+  <div class="navbar-spacer"></div>
+  <span class="navbar-link" id="nav-user" style="color:var(--black);font-weight:500;"></span>
+  <a class="navbar-link" href="#" id="logout-btn">Sign out</a>
+</nav>
+<div class="layout-sidebar">
+  <aside class="sidebar">
+    <div class="sidebar-label">Navigation</div>
+    <a class="sidebar-link active" href="/dashboard">Overview</a>
+  </aside>
+  <main class="main-content">
+    <div style="margin-bottom:2rem;">
+      <h1 id="greeting">Good day</h1>
+      <p class="text-muted">Your account is protected.</p>
+    </div>
+    <div class="card card-md" style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1.75rem;border-left:3px solid var(--accent-green);">
+      <div><span class="pulse-dot"></span><strong>Account Secure</strong></div>
+      <div class="text-muted text-sm" style="flex:1;">No suspicious activity detected.</div>
+      <div class="badge badge-success">PROTECTED</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Account</div><div class="stat-value" id="card-username" style="font-size:1.2rem;margin-top:0.2rem;">—</div><div class="stat-sub">Username</div></div>
+      <div class="stat-card"><div class="stat-label">Role</div><div class="stat-value" id="card-role" style="font-size:1.2rem;margin-top:0.2rem;">—</div><div class="stat-sub">Access level</div></div>
+      <div class="stat-card"><div class="stat-label">Member since</div><div class="stat-value" id="card-since" style="font-size:1rem;margin-top:0.2rem;">—</div><div class="stat-sub">Created</div></div>
+    </div>
+  </main>
+</div>
+<script>
+  // FIX: All auth now uses HttpOnly cookie sent automatically by the browser.
+  // Removed: getToken(), getCookie('bs_token'), localStorage, Authorization header.
+
+  function doLogout(){
+    // FIX: must call server to clear the HttpOnly cookie — JS cannot do it directly.
+    fetch('/api/auth/logout', {method:'POST', credentials:'include'}).finally(function(){
+      window.location.href = '/';
+    });
+  }
+
+  window.onload = function() {
+    document.getElementById('logout-btn').onclick = function(e){e.preventDefault();doLogout();};
+
+    // FIX: No token needed in headers — cookie is sent automatically via credentials:'include'.
+    // If cookie is absent or expired, server returns 401 and we redirect to login.
+    fetch('/api/auth/me', {credentials:'include'}).then(function(r){
+      if(r.status===401 || r.status===403){window.location.href='/';return null;}
+      return r.json();
+    }).then(function(user){
+      if(!user)return;
+      if(user.role==='admin'){window.location.href='/admin';return;}
+      document.getElementById('nav-user').textContent=user.username;
+      document.getElementById('card-username').textContent=user.username;
+      document.getElementById('card-role').textContent=user.role.toUpperCase();
+      var d=new Date(user.created_at);
+      document.getElementById('card-since').textContent=d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      var h=new Date().getHours();
+      var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+      document.getElementById('greeting').textContent=g+', '+user.username;
+    }).catch(function(){window.location.href='/';});
+  };
+</script>
+</body>
+</html>

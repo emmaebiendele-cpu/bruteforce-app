@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – BruteShield</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    .attack-BRUTE_FORCE{background:#fee2e2;color:#b91c1c}
+    .attack-SPRAY{background:#fef3c7;color:#b45309}
+    .attack-CREDENTIAL_STUFFING{background:#f3e8ff;color:#7c3aed}
+    .attack-ML_ANOMALY{background:#dbeafe;color:#1d4ed8}
+    .attack-NONE{background:var(--grey-100);color:var(--grey-600)}
+    .tab-panel{display:none}.tab-panel.active{display:block}
+    .live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-green);margin-right:5px;animation:blink 1.6s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal{background:var(--white);border-radius:var(--radius-lg);padding:2rem;width:100%;max-width:420px;box-shadow:var(--shadow-drop)}
+    .modal h3{margin-bottom:1.25rem}
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="navbar-brand" href="/admin">BRUTE<span>SHIELD</span></a>
+  <div class="badge badge-blocked" style="font-size:0.65rem;">ADMIN</div>
+  <div class="navbar-spacer"></div>
+  <span id="nav-user" class="navbar-link" style="color:var(--black);font-weight:500;"></span>
+  <a class="navbar-link" href="#" id="logout-btn">Sign out</a>
+</nav>
+<div class="layout-sidebar">
+  <aside class="sidebar">
+    <div class="sidebar-label">Admin</div>
+    <button class="sidebar-link active" id="tab-btn-overview">Overview</button>
+    <button class="sidebar-link" id="tab-btn-logs">Login Logs</button>
+    <button class="sidebar-link" id="tab-btn-active-users">Active Users</button>
+    <button class="sidebar-link" id="tab-btn-blocked-ips">Blocked IPs</button>
+    <button class="sidebar-link" id="tab-btn-ml">ML Anomalies</button>
+    <div class="sidebar-label" style="margin-top:1.5rem;">Actions</div>
+    <button class="sidebar-link" id="open-block-btn">+ Block IP</button>
+    <button class="sidebar-link" id="retrain-btn">Retrain Model</button>
+  </aside>
+  <main class="main-content">
+    <div class="tab-panel active" id="panel-overview">
+      <div class="section-header"><h2>Security Overview</h2><button class="btn btn-ghost btn-sm" id="refresh-stats-btn">Refresh</button></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Logs</div><div class="stat-value" id="st-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">Failures</div><div class="stat-value" id="st-fail" style="color:var(--accent-red)">—</div></div>
+        <div class="stat-card"><div class="stat-label">Successes</div><div class="stat-value" id="st-succ" style="color:var(--accent-green)">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active Blocks</div><div class="stat-value" id="st-block">—</div></div>
+      </div>
+      <div class="card card-md" style="margin-bottom:1.5rem;">
+        <div class="section-header"><h2>Attack Type Breakdown</h2></div>
+        <div id="attack-breakdown" style="display:flex;flex-direction:column;gap:0.75rem;"></div>
+      </div>
+      <div class="card card-md">
+        <div class="section-header"><h2>Recent Events</h2><button class="btn btn-ghost btn-sm" id="view-all-btn">View all</button></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Time</th><th>IP Address</th><th>Username</th><th>Status</th><th>Attack Type</th><th>ML Score</th></tr></thead>
+          <tbody id="overview-tbody"><tr><td colspan="6" style="text-align:center;color:var(--grey-400)">Loading...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="panel-logs">
+      <div class="section-header"><h2>Login Log</h2><button class="btn btn-ghost btn-sm" id="refresh-logs-btn">Refresh</button></div>
+      <div class="filters-bar">
+        <div class="form-group" style="margin-bottom:0"><label>IP</label><input type="text" id="filter-ip" placeholder="Filter by IP..." /></div>
+        <div class="form-group" style="margin-bottom:0"><label>Status</label><select id="filter-status"><option value="">All</option><option value="SUCCESS">Success</option><option value="FAILURE">Failure</option><option value="BLOCKED">Blocked</option></select></div>
+        <div class="form-group" style="margin-bottom:0"><label>Attack</label><select id="filter-attack"><option value="">All</option><option value="BRUTE_FORCE">Brute Force</option><option value="SPRAY">Spray</option><option value="CREDENTIAL_STUFFING">Stuffing</option><option value="ML_ANOMALY">ML Anomaly</option></select></div>
+      </div>
+      <div class="card"><div class="table-wrap"><table>
+        <thead><tr><th>Timestamp</th><th>IP</th><th>Username</th><th>Status</th><th>Attack Type</th><th>ML Score</th><th>Action</th></tr></thead>
+        <tbody id="logs-tbody"><tr><td colspan="7" style="text-align:center;color:var(--grey-400)">Loading...</td></tr></tbody>
+      </table></div></div>
+    </div>
+    <div class="tab-panel" id="panel-active-users">
+      <div class="section-header"><h2><span class="live-dot"></span>Active Sessions</h2><button class="btn btn-ghost btn-sm" id="refresh-users-btn">Refresh</button></div>
+      <div class="card"><div class="table-wrap"><table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>IP</th><th>Logged In</th><th>Last Active</th></tr></thead>
+        <tbody id="active-tbody"><tr><td colspan="6" style="text-align:center;color:var(--grey-400)">Loading...</td></tr></tbody>
+      </table></div></div>
+    </div>
+    <div class="tab-panel" id="panel-blocked-ips">
+      <div class="section-header"><h2>Blocked IPs</h2><div class="flex gap-1"><button class="btn btn-ghost btn-sm" id="refresh-blocked-btn">Refresh</button><button class="btn btn-primary btn-sm" id="open-block-btn2">+ Block IP</button></div></div>
+      <div class="card"><div class="table-wrap"><table>
+        <thead><tr><th>IP Address</th><th>Reason</th><th>Attack Type</th><th>Blocked At</th><th>Expires</th><th>Blocked By</th><th>Action</th></tr></thead>
+        <tbody id="blocked-tbody"><tr><td colspan="7" style="text-align:center;color:var(--grey-400)">Loading...</td></tr></tbody>
+      </table></div></div>
+    </div>
+    <div class="tab-panel" id="panel-ml">
+      <div class="section-header"><h2>ML Anomalies</h2><div class="flex gap-1"><button class="btn btn-ghost btn-sm" id="refresh-ml-btn">Refresh</button><button class="btn btn-primary btn-sm" id="retrain-btn2">Retrain Model</button></div></div>
+      <div id="train-result" class="alert hidden" style="margin-bottom:1rem;"></div>
+      <div class="card"><div class="table-wrap"><table>
+        <thead><tr><th>Detected At</th><th>IP</th><th>ML Score</th><th>Action</th><th>Features</th></tr></thead>
+        <tbody id="anomaly-tbody"><tr><td colspan="5" style="text-align:center;color:var(--grey-400)">Loading...</td></tr></tbody>
+      </table></div></div>
+    </div>
+  </main>
+</div>
+<div class="modal-overlay" id="block-modal">
+  <div class="modal">
+    <h3>Block IP Address</h3>
+    <div id="modal-alert" class="alert hidden"></div>
+    <div class="form-group"><label>IP Address</label><input type="text" id="block-ip-input" placeholder="192.168.1.100" /></div>
+    <div class="form-group"><label>Reason</label><input type="text" id="block-reason" placeholder="Manually blocked" /></div>
+    <div class="form-group"><label>Duration seconds (blank=permanent)</label><input type="number" id="block-duration" placeholder="3600" /></div>
+    <div class="flex gap-1" style="margin-top:1rem;justify-content:flex-end;">
+      <button class="btn btn-ghost" id="cancel-block-btn">Cancel</button>
+      <button class="btn btn-danger" id="submit-block-btn">Block IP</button>
+    </div>
+  </div>
+</div>
+<script>
+  // FIX: All auth now uses HttpOnly cookie sent automatically by the browser.
+  // Removed: getToken(), getCookie('bs_token'), localStorage, Authorization header.
+  // authFetch() uses credentials:'include' so the cookie is sent on every request.
+
+  function authFetch(url, opts) {
+    opts = opts || {};
+    opts.credentials = 'include'; // sends HttpOnly cookie automatically
+    return fetch(url, opts).then(function(r) {
+      if (r.status === 401 || r.status === 403) {
+        window.location.href = '/';
+        return null;
+      }
+      return r;
+    }).catch(function(e) { console.error(e); return null; });
+  }
+
+  function fmtDate(s){if(!s)return '—';try{return new Date(s).toLocaleString();}catch(e){return s;}}
+  function attackBadge(t){return '<span class="badge attack-'+t+'">'+t.replace(/_/g,' ')+'</span>';}
+  function statusBadge(s){var c=s==='SUCCESS'?'badge-success':s==='FAILURE'?'badge-danger':'badge-blocked';return '<span class="badge '+c+'">'+s+'</span>';}
+
+  function switchTab(name){
+    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+    document.querySelectorAll('.sidebar-link').forEach(function(b){b.classList.remove('active');});
+    var p=document.getElementById('panel-'+name);if(p)p.classList.add('active');
+    var b=document.getElementById('tab-btn-'+name);if(b)b.classList.add('active');
+    if(name==='overview'){loadStats();loadOverviewLogs();}
+    else if(name==='logs')loadLogs();
+    else if(name==='active-users')loadActiveUsers();
+    else if(name==='blocked-ips')loadBlockedIPs();
+    else if(name==='ml')loadAnomalies();
+  }
+
+  function loadStats(){
+    authFetch('/api/admin/logs/stats').then(function(r){if(!r)return null;return r.json();}).then(function(d){
+      if(!d)return;
+      document.getElementById('st-total').textContent=d.total_logs||0;
+      document.getElementById('st-fail').textContent=(d.by_status&&d.by_status.FAILURE)||0;
+      document.getElementById('st-succ').textContent=(d.by_status&&d.by_status.SUCCESS)||0;
+      document.getElementById('st-block').textContent=d.active_blocks||0;
+      var c=document.getElementById('attack-breakdown'),a=d.by_attack_type||{},keys=Object.keys(a);
+      if(!keys.length){c.innerHTML='<p class="text-muted">No attack data yet.</p>';return;}
+      var total=keys.reduce(function(s,k){return s+a[k];},0)||1;
+      var labels={BRUTE_FORCE:'Brute Force',SPRAY:'Password Spraying',CREDENTIAL_STUFFING:'Credential Stuffing',ML_ANOMALY:'ML Anomaly',NONE:'Clean'};
+      c.innerHTML=keys.map(function(t){var p=Math.round(a[t]/total*100);return '<div><div class="flex justify-between" style="margin-bottom:4px"><span class="text-sm" style="font-weight:500">'+(labels[t]||t)+'</span><span class="mono text-sm">'+a[t]+'</span></div><div style="height:6px;background:var(--grey-100);border-radius:3px"><div class="attack-'+t+'" style="height:100%;width:'+p+'%;border-radius:3px"></div></div></div>';}).join('');
+    });
+  }
+
+  function loadOverviewLogs(){
+    authFetch('/api/admin/logs?page=1&page_size=8').then(function(r){if(!r)return null;return r.json();}).then(function(logs){
+      if(!logs)return;
+      var tb=document.getElementById('overview-tbody');
+      if(!logs.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--grey-400)">No logs yet.</td></tr>';return;}
+      tb.innerHTML=logs.map(function(l){var sc=(l.ml_score!==null&&l.ml_score!==undefined)?l.ml_score.toFixed(3):'—';return '<tr><td class="mono" style="font-size:0.78rem">'+fmtDate(l.timestamp)+'</td><td class="mono">'+l.ip_address+'</td><td>'+l.attempted_username+'</td><td>'+statusBadge(l.status)+'</td><td>'+attackBadge(l.attack_type)+'</td><td class="mono">'+sc+'</td></tr>';}).join('');
+    });
+  }
+
+  function loadLogs(){
+    var ip=(document.getElementById('filter-ip')||{}).value||'';
+    var st=(document.getElementById('filter-status')||{}).value||'';
+    var at=(document.getElementById('filter-attack')||{}).value||'';
+    var url='/api/admin/logs?page=1&page_size=100';
+    if(ip)url+='&ip_filter='+encodeURIComponent(ip);
+    if(st)url+='&status_filter='+st;
+    if(at)url+='&attack_filter='+at;
+    authFetch(url).then(function(r){if(!r)return null;return r.json();}).then(function(logs){
+      if(!logs)return;
+      var tb=document.getElementById('logs-tbody');
+      if(!logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey-400)">No logs.</td></tr>';return;}
+      tb.innerHTML=logs.map(function(l){var sc=(l.ml_score!==null&&l.ml_score!==undefined)?l.ml_score.toFixed(3):'—';return '<tr><td class="mono" style="font-size:0.78rem">'+fmtDate(l.timestamp)+'</td><td class="mono">'+l.ip_address+'</td><td>'+l.attempted_username+'</td><td>'+statusBadge(l.status)+'</td><td>'+attackBadge(l.attack_type)+'</td><td class="mono">'+sc+'</td><td><button class="btn btn-danger btn-sm" onclick="quickBlock(\''+l.ip_address+'\')">Block</button></td></tr>';}).join('');
+    });
+  }
+
+  function loadActiveUsers(){
+    authFetch('/api/admin/users/active').then(function(r){if(!r)return null;return r.json();}).then(function(u){
+      if(!u)return;
+      var tb=document.getElementById('active-tbody');
+      if(!u.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--grey-400)">No active sessions.</td></tr>';return;}
+      tb.innerHTML=u.map(function(x){return '<tr><td><strong>'+x.username+'</strong></td><td>'+x.email+'</td><td><span class="badge '+(x.role==='admin'?'badge-blocked':'badge-neutral')+'">'+x.role.toUpperCase()+'</span></td><td class="mono">'+(x.ip_address||'—')+'</td><td class="mono" style="font-size:0.78rem">'+fmtDate(x.logged_in_at)+'</td><td class="mono" style="font-size:0.78rem">'+fmtDate(x.last_active)+'</td></tr>';}).join('');
+    });
+  }
+
+  function loadBlockedIPs(){
+    authFetch('/api/admin/blocked-ips').then(function(r){if(!r)return null;return r.json();}).then(function(ips){
+      if(!ips)return;
+      var tb=document.getElementById('blocked-tbody');
+      if(!ips.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey-400)">No blocked IPs.</td></tr>';return;}
+      tb.innerHTML=ips.map(function(b){return '<tr><td class="mono"><strong>'+b.ip_address+'</strong></td><td>'+(b.reason||'—')+'</td><td>'+attackBadge(b.attack_type)+'</td><td class="mono" style="font-size:0.78rem">'+fmtDate(b.blocked_at)+'</td><td class="mono" style="font-size:0.78rem">'+(b.expires_at?fmtDate(b.expires_at):'Permanent')+'</td><td>'+(b.blocked_by||'—')+'</td><td><button class="btn btn-ghost btn-sm" onclick="unblockIP(\''+b.ip_address+'\')">Unblock</button></td></tr>';}).join('');
+    });
+  }
+
+  function loadAnomalies(){
+    authFetch('/api/admin/ml/anomalies').then(function(r){if(!r)return null;return r.json();}).then(function(rows){
+      if(!rows)return;
+      var tb=document.getElementById('anomaly-tbody');
+      if(!rows.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--grey-400)">No anomalies.</td></tr>';return;}
+      tb.innerHTML=rows.map(function(a){var f='—';try{f=JSON.stringify(JSON.parse(a.features)).slice(0,80)+'...';}catch(e){}var sc=a.ml_score>0.7?'var(--accent-red)':'var(--accent-amber)';return '<tr><td class="mono" style="font-size:0.78rem">'+fmtDate(a.detected_at)+'</td><td class="mono">'+a.ip_address+'</td><td class="mono" style="color:'+sc+'">'+a.ml_score.toFixed(4)+'</td><td><span class="badge badge-info">'+(a.action_taken||'flagged')+'</span></td><td><span class="mono" style="font-size:0.72rem">'+f+'</span></td></tr>';}).join('');
+    });
+  }
+
+  function openBlockModal(){document.getElementById('block-ip-input').value='';document.getElementById('block-reason').value='';document.getElementById('block-duration').value='';document.getElementById('modal-alert').classList.add('hidden');document.getElementById('block-modal').classList.add('open');}
+  function closeBlockModal(){document.getElementById('block-modal').classList.remove('open');}
+  function showModalAlert(t,m){var e=document.getElementById('modal-alert');e.className='alert alert-'+t;e.textContent=m;e.classList.remove('hidden');}
+
+  function submitBlock(){
+    var ip=document.getElementById('block-ip-input').value.trim();
+    var reason=document.getElementById('block-reason').value.trim()||'Manually blocked by admin';
+    var dur=document.getElementById('block-duration').value;
+    if(!ip){showModalAlert('error','Please enter an IP.');return;}
+    var body={ip_address:ip,reason:reason};
+    if(dur)body.duration_seconds=parseInt(dur);
+    authFetch('/api/admin/blocked-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){if(!r)return;if(r.ok){closeBlockModal();loadBlockedIPs();}else{r.json().then(function(d){showModalAlert('error',d.detail||'Failed.');});}});
+  }
+
+  function unblockIP(ip){if(!confirm('Unblock '+ip+'?'))return;authFetch('/api/admin/blocked-ips/'+encodeURIComponent(ip),{method:'DELETE'}).then(function(r){if(r&&r.ok)loadBlockedIPs();});}
+  function quickBlock(ip){if(!confirm('Block '+ip+'?'))return;authFetch('/api/admin/blocked-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip_address:ip,reason:'Blocked from log view'})}).then(function(){loadBlockedIPs();});}
+
+  function triggerTrain(){
+    var box=document.getElementById('train-result');
+    box.className='alert alert-info';box.textContent='Training...';box.classList.remove('hidden');
+    authFetch('/api/admin/ml/train',{method:'POST'}).then(function(r){if(!r)return null;return r.json();}).then(function(d){if(!d)return;var m=d.metrics||{};box.className='alert alert-success';box.textContent='Retrained. Accuracy: '+((m.accuracy||0)*100).toFixed(1)+'% | F1: '+(m.f1||0).toFixed(3);});
+  }
+
+  function doLogout(){
+    // FIX: call the server logout endpoint to clear the HttpOnly cookie,
+    // then redirect. We can't clear an HttpOnly cookie from JS directly.
+    fetch('/api/auth/logout', {method:'POST', credentials:'include'}).finally(function(){
+      window.location.href = '/';
+    });
+  }
+
+  window.onload = function() {
+    document.getElementById('logout-btn').onclick = function(e){e.preventDefault();doLogout();};
+    document.getElementById('tab-btn-overview').onclick=function(){switchTab('overview');};
+    document.getElementById('tab-btn-logs').onclick=function(){switchTab('logs');};
+    document.getElementById('tab-btn-active-users').onclick=function(){switchTab('active-users');};
+    document.getElementById('tab-btn-blocked-ips').onclick=function(){switchTab('blocked-ips');};
+    document.getElementById('tab-btn-ml').onclick=function(){switchTab('ml');};
+    document.getElementById('open-block-btn').onclick=openBlockModal;
+    document.getElementById('open-block-btn2').onclick=openBlockModal;
+    document.getElementById('retrain-btn').onclick=triggerTrain;
+    document.getElementById('retrain-btn2').onclick=triggerTrain;
+    document.getElementById('refresh-stats-btn').onclick=loadStats;
+    document.getElementById('refresh-logs-btn').onclick=loadLogs;
+    document.getElementById('refresh-users-btn').onclick=loadActiveUsers;
+    document.getElementById('refresh-blocked-btn').onclick=loadBlockedIPs;
+    document.getElementById('refresh-ml-btn').onclick=loadAnomalies;
+    document.getElementById('cancel-block-btn').onclick=closeBlockModal;
+    document.getElementById('submit-block-btn').onclick=submitBlock;
+    document.getElementById('view-all-btn').onclick=function(){switchTab('logs');};
+    document.getElementById('filter-ip').oninput=loadLogs;
+    document.getElementById('filter-status').onchange=loadLogs;
+    document.getElementById('filter-attack').onchange=loadLogs;
+
+    // FIX: No token check needed — cookie is sent automatically.
+    // If the cookie is missing/expired the server returns 401 and
+    // authFetch redirects to login.
+    authFetch('/api/auth/me').then(function(r){
+      if(!r)return null;
+      return r.json();
+    }).then(function(user){
+      if(!user)return;
+      if(user.role!=='admin'){window.location.href='/dashboard';return;}
+      document.getElementById('nav-user').textContent=user.username;
+      loadStats();
+      loadOverviewLogs();
+      setInterval(function(){
+        var a=document.querySelector('.tab-panel.active');
+        if(!a)return;
+        if(a.id==='panel-overview'){loadStats();loadOverviewLogs();}
+        if(a.id==='panel-active-users')loadActiveUsers();
+      },30000);
+    });
+  };
+</script>
+</body>
+</html>
